@@ -43,66 +43,58 @@ export default function App() {
   }, [username]);
 
   const fetchTiktokProfile = async (user: string) => {
-    if (!user || user.length < 2) {
+    if (!user || user.trim().length < 2) {
       setTiktokProfile(null);
       setProfileError(null);
       return;
     }
 
-    const sanitizedUser = user.startsWith("@") ? user.slice(1) : user;
+    const sanitizedUser = user.trim().replace(/^@+/, "");
+    if (sanitizedUser.length < 2) {
+      setTiktokProfile(null);
+      setProfileError(null);
+      return;
+    }
 
     setIsFetchingProfile(true);
     setProfileError(null);
-    
-    if (activeController) {
-      activeController.abort();
-    }
-    
-    const controller = new AbortController();
-    setActiveController(controller);
-    
+
+    let profileFound = false;
+
+    // 1. Attempt server API
     try {
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
-      
-      let fetchedData: any = null;
-      
-      try {
-        const response = await fetch(`/api/tiktok-profile?username=${encodeURIComponent(sanitizedUser)}`, {
-          signal: controller.signal,
-          headers: {
-            "Accept": "application/json"
-          }
-        });
-        
-        if (response.ok) {
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            fetchedData = await response.json();
+      const response = await fetch(`/api/tiktok-profile?username=${encodeURIComponent(sanitizedUser)}`, {
+        headers: { "Accept": "application/json" }
+      });
+
+      if (response.ok) {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await response.json();
+          if (data && (data.avatar || data.nickname)) {
+            setTiktokProfile({
+              id: data.id || "N/A",
+              uniqueId: data.uniqueId || sanitizedUser,
+              avatar: data.avatar || `https://unavatar.io/tiktok/${encodeURIComponent(sanitizedUser)}`,
+              nickname: data.nickname || sanitizedUser,
+              followers: data.followers || "125.4K",
+              profileUrl: data.profileUrl || `https://www.tiktok.com/@${sanitizedUser}`
+            });
+            profileFound = true;
           }
         }
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
-        console.warn("Server API fetch warning, trying client fallback:", err);
       }
-      
-      clearTimeout(timeoutId);
+    } catch (e) {
+      console.warn("Server API fetch skipped/failed, using fallback:", e);
+    }
 
-      if (fetchedData && (fetchedData.avatar || fetchedData.nickname)) {
-        setTiktokProfile({
-          id: fetchedData.id || "N/A",
-          uniqueId: fetchedData.uniqueId || sanitizedUser,
-          avatar: fetchedData.avatar || `https://unavatar.io/tiktok/${encodeURIComponent(sanitizedUser)}`,
-          nickname: fetchedData.nickname || sanitizedUser,
-          followers: fetchedData.followers || "125.4K",
-          profileUrl: fetchedData.profileUrl || `https://www.tiktok.com/@${sanitizedUser}`
-        });
-        setProfileError(null);
-      } else {
-        // Client-side direct fallback via TikTok oEmbed
-        try {
-          const oembedRes = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(`https://www.tiktok.com/@${sanitizedUser}`)}`);
-          if (oembedRes.ok) {
-            const odata = await oembedRes.json();
+    // 2. Client-side oEmbed fallback
+    if (!profileFound) {
+      try {
+        const oembedRes = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(`https://www.tiktok.com/@${sanitizedUser}`)}`);
+        if (oembedRes.ok) {
+          const odata = await oembedRes.json();
+          if (odata) {
             setTiktokProfile({
               id: "N/A",
               uniqueId: odata.author_unique_id || sanitizedUser,
@@ -111,30 +103,16 @@ export default function App() {
               followers: "125.4K",
               profileUrl: `https://www.tiktok.com/@${sanitizedUser}`
             });
-            setProfileError(null);
-            return;
+            profileFound = true;
           }
-        } catch (oeErr) {
-          console.warn("Client oEmbed fallback failed:", oeErr);
         }
+      } catch (oeErr) {
+        console.warn("Client oEmbed fallback failed:", oeErr);
+      }
+    }
 
-        // Guaranteed fallback profile
-        setTiktokProfile({
-          id: "N/A",
-          uniqueId: sanitizedUser,
-          avatar: `https://unavatar.io/tiktok/${encodeURIComponent(sanitizedUser)}`,
-          nickname: sanitizedUser,
-          followers: "125.4K",
-          profileUrl: `https://www.tiktok.com/@${sanitizedUser}`
-        });
-        setProfileError(null);
-      }
-    } catch (e: any) {
-      if (e.name === 'AbortError') {
-        console.log("Profile request aborted or timed out");
-        return;
-      }
-      // Guaranteed fallback
+    // 3. Guaranteed instant fallback profile
+    if (!profileFound) {
       setTiktokProfile({
         id: "N/A",
         uniqueId: sanitizedUser,
@@ -143,10 +121,10 @@ export default function App() {
         followers: "125.4K",
         profileUrl: `https://www.tiktok.com/@${sanitizedUser}`
       });
-      setProfileError(null);
-    } finally {
-      setIsFetchingProfile(false);
     }
+
+    setProfileError(null);
+    setIsFetchingProfile(false);
   };
 
   const handleInitiateTransfer = () => {
@@ -236,7 +214,7 @@ export default function App() {
 
   const getProxyUrl = (url: string) => {
     if (!url) return "";
-    if (url.includes("ui-avatars.com")) return url;
+    if (url.includes("ui-avatars.com") || url.includes("unavatar.io")) return url;
     if (url.startsWith("http://") || url.startsWith("https://")) {
       return `/api/proxy-image?url=${encodeURIComponent(url)}`;
     }
