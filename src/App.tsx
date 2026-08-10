@@ -399,18 +399,23 @@ export default function App() {
                               }}
                             />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <p className="font-bold text-base truncate text-gray-900">{tiktokProfile.nickname}</p>
-                              <a 
-                                href={tiktokProfile.profileUrl || `https://www.tiktok.com/@${username.replace(/^@/, '')}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[11px] text-[#FE2C55] font-semibold hover:underline truncate ml-2"
-                              >
-                                tiktok.com/@{tiktokProfile.uniqueId || username.replace(/^@/, '')}
-                              </a>
+                          <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm truncate text-gray-900 leading-tight">
+                                {tiktokProfile.nickname}
+                              </p>
+                              <p className="text-xs text-gray-500 font-medium truncate mt-0.5">
+                                @{tiktokProfile.uniqueId || username.replace(/^@+/, '')}
+                              </p>
                             </div>
+                            <a 
+                              href={tiktokProfile.profileUrl || `https://www.tiktok.com/@${username.replace(/^@+/, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-[#FE2C55] bg-pink-50 hover:bg-pink-100 px-2.5 py-1 rounded-full font-semibold transition-colors flex-shrink-0"
+                            >
+                              tiktok.com/@{tiktokProfile.uniqueId || username.replace(/^@+/, '')}
+                            </a>
                           </div>
                         </motion.div>
                       )}
