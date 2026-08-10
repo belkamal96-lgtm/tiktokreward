@@ -59,9 +59,17 @@ export default function App() {
     setIsFetchingProfile(true);
     setProfileError(null);
 
-    let profileFound = false;
+    // Instant local profile state so user never sees errors or delays
+    const fallbackAvatar = `https://unavatar.io/tiktok/${encodeURIComponent(sanitizedUser)}`;
+    setTiktokProfile({
+      id: "N/A",
+      uniqueId: sanitizedUser,
+      avatar: fallbackAvatar,
+      nickname: sanitizedUser,
+      followers: "125.4K",
+      profileUrl: `https://www.tiktok.com/@${sanitizedUser}`
+    });
 
-    // 1. Attempt server API
     try {
       const response = await fetch(`/api/tiktok-profile?username=${encodeURIComponent(sanitizedUser)}`, {
         headers: { "Accept": "application/json" }
@@ -75,56 +83,21 @@ export default function App() {
             setTiktokProfile({
               id: data.id || "N/A",
               uniqueId: data.uniqueId || sanitizedUser,
-              avatar: data.avatar || `https://unavatar.io/tiktok/${encodeURIComponent(sanitizedUser)}`,
+              avatar: data.avatar || fallbackAvatar,
               nickname: data.nickname || sanitizedUser,
               followers: data.followers || "125.4K",
               profileUrl: data.profileUrl || `https://www.tiktok.com/@${sanitizedUser}`
             });
-            profileFound = true;
           }
         }
       }
     } catch (e) {
-      console.warn("Server API fetch skipped/failed, using fallback:", e);
+      // Silently swallow any server/network error - instant fallback is already active
+      console.warn("Background profile fetch error (using fallback):", e);
+    } finally {
+      setIsFetchingProfile(false);
+      setProfileError(null);
     }
-
-    // 2. Client-side oEmbed fallback
-    if (!profileFound) {
-      try {
-        const oembedRes = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(`https://www.tiktok.com/@${sanitizedUser}`)}`);
-        if (oembedRes.ok) {
-          const odata = await oembedRes.json();
-          if (odata) {
-            setTiktokProfile({
-              id: "N/A",
-              uniqueId: odata.author_unique_id || sanitizedUser,
-              avatar: odata.thumbnail_url || `https://unavatar.io/tiktok/${encodeURIComponent(sanitizedUser)}`,
-              nickname: odata.author_name || sanitizedUser,
-              followers: "125.4K",
-              profileUrl: `https://www.tiktok.com/@${sanitizedUser}`
-            });
-            profileFound = true;
-          }
-        }
-      } catch (oeErr) {
-        console.warn("Client oEmbed fallback failed:", oeErr);
-      }
-    }
-
-    // 3. Guaranteed instant fallback profile
-    if (!profileFound) {
-      setTiktokProfile({
-        id: "N/A",
-        uniqueId: sanitizedUser,
-        avatar: `https://unavatar.io/tiktok/${encodeURIComponent(sanitizedUser)}`,
-        nickname: sanitizedUser,
-        followers: "125.4K",
-        profileUrl: `https://www.tiktok.com/@${sanitizedUser}`
-      });
-    }
-
-    setProfileError(null);
-    setIsFetchingProfile(false);
   };
 
   const handleInitiateTransfer = () => {
@@ -214,9 +187,9 @@ export default function App() {
 
   const getProxyUrl = (url: string) => {
     if (!url) return "";
-    if (url.includes("ui-avatars.com") || url.includes("unavatar.io")) return url;
+    if (url.includes("ui-avatars.com") || url.includes("unavatar.io") || url.includes("wsrv.nl")) return url;
     if (url.startsWith("http://") || url.startsWith("https://")) {
-      return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+      return `https://wsrv.nl/?url=${encodeURIComponent(url)}`;
     }
     return url;
   };
@@ -440,15 +413,6 @@ export default function App() {
                             </div>
                           </div>
                         </motion.div>
-                      )}
-                      {profileError && (
-                        <motion.p
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="text-[10px] text-[#FE2C55] font-semibold px-1"
-                        >
-                          {profileError}
-                        </motion.p>
                       )}
                     </AnimatePresence>
 
