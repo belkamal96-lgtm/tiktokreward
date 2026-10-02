@@ -4,12 +4,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, MoreHorizontal, Info, ChevronRight, ChevronDown, X, CheckCircle2, Copy, HelpCircle, Loader2, FileText, Printer, ShieldCheck, Check } from 'lucide-react';
+import { ArrowLeft, MoreHorizontal, Info, ChevronRight, ChevronDown, X, CheckCircle2, Copy, HelpCircle, Loader2, FileText, Printer, ShieldCheck, Check, Download, Smartphone, QrCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
+import { DownloadModal } from './DownloadModal';
 
 export default function App() {
   const [balance, setBalance] = useState(15000000.00);
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -202,9 +204,22 @@ export default function App() {
           <ArrowLeft className="w-6 h-6" />
         </button>
         <h1 className="text-lg font-bold">LIVE rewards</h1>
-        <button className="p-1 hover:bg-gray-100 rounded-full transition-colors">
-          <MoreHorizontal className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button 
+            onClick={() => setIsDownloadOpen(true)}
+            className="flex items-center gap-1 bg-[#FE2C55]/10 hover:bg-[#FE2C55]/20 text-[#FE2C55] px-2.5 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95"
+            title="Download App"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Download</span>
+          </button>
+          <button 
+            onClick={() => setIsDownloadOpen(true)}
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <MoreHorizontal className="w-6 h-6" />
+          </button>
+        </div>
       </header>
 
       <main className="max-w-md mx-auto pb-8">
@@ -226,7 +241,6 @@ export default function App() {
           <div className="text-center mb-8">
             <p className="text-sm font-semibold mb-2">Available rewards</p>
             <div className="flex items-baseline justify-center gap-1 overflow-hidden">
-              <span className="text-lg font-bold">US</span>
               <span className="text-2xl sm:text-3xl font-bold truncate">
                 {balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
@@ -812,6 +826,9 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Download Modal */}
+      <DownloadModal isOpen={isDownloadOpen} onClose={() => setIsDownloadOpen(false)} />
     </div>
   );
 }
